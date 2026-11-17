@@ -1,0 +1,33 @@
+# Environments and secrets
+.env
+.env.*
+!.env.example
+!.env.production.example
+*.pem
+*.key
+
+# Database backups, dumps, and local databases
+backups/
+*.sql
+*.sql.gz
+*.sha256
+*.db
+*.sqlite
+*.sqlite3
+
+# Python caches and virtual environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.coverage
+htmlcov/
+*.log
+
+# Node & Frontend build artifacts
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+npm-debug.log*

@@ -1,0 +1,47 @@
+stateDiagram-v2
+    [*] --> DETECTED: Alert Trigger / Anomaly Detected / Manual Report
+
+    state DETECTED {
+        [*] --> Unassigned
+        Unassigned --> PageOnCall: Auto-page On-Call via Escalation Policy
+        PageOnCall --> Acknowledged: SRE Acknowledges Page
+    }
+
+    DETECTED --> INVESTIGATING: Engineer Triages OR Auto-trigger AI Investigation
+    
+    state INVESTIGATING {
+        [*] --> EvidenceGathering
+        EvidenceGathering --> LogAnalysis
+        LogAnalysis --> HypothesisFormulation
+        HypothesisFormulation --> ImpactEstimation
+        ImpactEstimation --> RemediationReady
+    }
+
+    INVESTIGATING --> IDENTIFIED: Root Cause Confirmed (AI or SRE)
+    
+    state IDENTIFIED {
+        [*] --> SelectMitigation
+        SelectMitigation --> ExecutePlaybook: Trigger Automated Playbook
+        SelectMitigation --> ManualIntervention: Manual Hotfix / Rollback
+        ExecutePlaybook --> VerifyFix
+        ManualIntervention --> VerifyFix
+    }
+
+    IDENTIFIED --> MONITORING: Remediation Deployed & Under Observation
+    
+    state MONITORING {
+        [*] --> TelemetryWatch
+        TelemetryWatch --> NominalMetrics: Error Rate Drops Below Threshold
+        TelemetryWatch --> RegressionDetected: Error Spike Resumes
+    }
+
+    MONITORING --> INVESTIGATING: Regression Detected (Reopen Triage)
+    MONITORING --> RESOLVED: Telemetry Stable for Soak Window
+
+    state RESOLVED {
+        [*] --> CloseIncident
+        CloseIncident --> GeneratePostmortem: Auto-compile AI Post-Incident Review
+        GeneratePostmortem --> ArchiveEvidence
+    }
+
+    RESOLVED --> [*]

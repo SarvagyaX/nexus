@@ -1,0 +1,100 @@
+graph TD
+    subgraph ClientTier ["Client Tier (Browser)"]
+        SPA["React 19 SPA (Vite + TypeScript)"]
+        DesignSystem["Tailwind CSS v4 + Radix UI Primitives"]
+        StateManagement["Auth Context + Lucide Icons + Recharts"]
+        SPA --> DesignSystem
+        SPA --> StateManagement
+    end
+
+    subgraph EdgeTier ["Edge & Gateway Tier"]
+        NGINX["Nginx Reverse Proxy (port 80/443)"]
+        SPA -. "HTTPS / REST" .-> NGINX
+    end
+
+    subgraph AppTier ["Application Tier (FastAPI Service)"]
+        FastAPI["FastAPI Async Engine (ASGI / Uvicorn)"]
+        NGINX -. "Proxy /api/v1" .-> FastAPI
+
+        subgraph CoreMiddleware ["Platform Middleware"]
+            SecurityHeaders["Security Headers Middleware"]
+            CORS["CORS & CSRF Middleware"]
+            AuthRBAC["JWT Auth & Workspace RBAC Guard"]
+            RateLimiter["Redis Token-Bucket Rate Limiter"]
+            AuditMiddleware["Audit Logging Middleware"]
+        end
+
+        FastAPI --> CoreMiddleware
+
+        subgraph Subsystems ["Core Operational Subsystems"]
+            AuthModule["Auth & Workspace Management"]
+            ServiceRegistry["Service Catalog & Dependency Graph"]
+            LogsIngestion["Logs Ingestion & Explorer API"]
+            AlertsEngine["Alert Rule Engine & Deduplication"]
+            IncidentManager["Incident Management & Timeline"]
+            OnCallManager["On-Call Rotations & Escalations"]
+            PlaybookEngine["Workflow & Playbook Engine"]
+            Notifications["Multi-Channel Notification Dispatcher"]
+            HealthMetrics["System Health & Prometheus Metrics"]
+        end
+
+        CoreMiddleware --> Subsystems
+
+        subgraph AgenticEngine ["Agentic AI Investigation Engine (LangGraph)"]
+            LangGraph["State Graph Supervisor"]
+            Planner["Node 1: Planner"]
+            EvidenceCollector["Node 2: Evidence Collector"]
+            LogAnalyzer["Node 3: Log Analyzer"]
+            HypothesisGenerator["Node 4: Hypothesis Generator"]
+            HypothesisEvaluator["Node 5: Hypothesis Evaluator"]
+            ImpactAnalyzer["Node 6: Impact Analyzer"]
+            RecommendationEngine["Node 7: Recommendation Engine"]
+            SummaryGenerator["Node 8: Executive Summary Generator"]
+
+            LangGraph --> Planner
+            Planner --> EvidenceCollector
+            EvidenceCollector --> LogAnalyzer
+            LogAnalyzer --> HypothesisGenerator
+            HypothesisGenerator --> HypothesisEvaluator
+            HypothesisEvaluator --> ImpactAnalyzer
+            ImpactAnalyzer --> RecommendationEngine
+            RecommendationEngine --> SummaryGenerator
+        end
+
+        IncidentManager -->|Trigger Investigation| LangGraph
+        PlaybookEngine -->|Invoke AI Analysis| LangGraph
+    end
+
+    subgraph StorageTier ["Data & State Tier"]
+        PostgreSQL[("PostgreSQL 16 (psycopg 3 / SQLAlchemy 2)
+- Workspaces, Users, Roles
+- Services & Dependency Edges
+- Structured Logs & Trace IDs
+- Alerts, Rules & Incident Records
+- Playbooks, Steps & Execution Logs
+- On-Call Shifts & Escalation Policies
+- Audit Trails")]
+
+        Redis[("Redis 7 (In-Memory State)
+- Session & Refresh Token Revocations
+- Sliding-Window Rate Limit Counters
+- Alert Deduplication Hashes & Locks
+- Health Check Heartbeats")]
+    end
+
+    subgraph ExternalServices ["External Integrations & Providers"]
+        Slack["Slack Webhooks"]
+        Email["SMTP / Email Gateway"]
+        PagerDuty["PagerDuty Events API"]
+        GenericWebhook["Custom Webhooks"]
+        LLMProviders["LLM Providers (Ollama / OpenAI-compatible / Mock)"]
+    end
+
+    Subsystems --> PostgreSQL
+    Subsystems --> Redis
+    AgenticEngine --> PostgreSQL
+    AgenticEngine -. "Inference" .-> LLMProviders
+    Notifications --> Slack
+    Notifications --> Email
+    Notifications --> PagerDuty
+    Notifications --> GenericWebhook

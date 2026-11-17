@@ -1,0 +1,83 @@
+sequenceDiagram
+    autonumber
+    actor SRE as SRE / On-Call Engineer
+    participant UI as NEXUS Web UI
+    participant API as FastAPI Incident Route
+    participant Supervisor as LangGraph Engine
+    participant Planner as 1. Planner Node
+    participant Collector as 2. Evidence Collector Node
+    participant LogAnalyzer as 3. Log Analyzer Node
+    participant HypoGen as 4. Hypothesis Generator Node
+    participant HypoEval as 5. Hypothesis Evaluator Node
+    participant Impact as 6. Impact Analyzer Node
+    participant RecEngine as 7. Recommendation Engine Node
+    participant SummaryGen as 8. Summary Generator Node
+    participant DB as PostgreSQL Store
+    participant Bus as Alert / Event Bus
+
+    SRE->>UI: Click "Trigger AI Investigation" on Incident
+    UI->>API: POST /api/v1/workspaces/{wid}/incidents/{id}/investigations
+    API->>DB: Verify Workspace RBAC & Create Investigation Record (status: running)
+    API->>Supervisor: Initialize InvestigationState Graph
+
+    rect rgb(18, 22, 34)
+        note over Supervisor,Planner: Stage 1: Investigation Planning
+        Supervisor->>Planner: Execute planner_node(state)
+        Planner->>Planner: Determine Scope, Focus Areas & Time Window from Severity
+        Planner-->>Supervisor: Update state.plan
+    end
+
+    rect rgb(20, 24, 38)
+        note over Supervisor,Collector: Stage 2: Evidence Gathering
+        Supervisor->>Collector: Execute collector_node(state)
+        Collector->>DB: Query Service Metadata, Dependencies, Logs & Timeline Events
+        DB-->>Collector: Return Service Topology, Telemetry Records & Incident History
+        Collector-->>Supervisor: Update state.evidence
+    end
+
+    rect rgb(24, 28, 44)
+        note over Supervisor,LogAnalyzer: Stage 3: Log Pattern Analysis
+        Supervisor->>LogAnalyzer: Execute log_analyzer_node(state)
+        LogAnalyzer->>LogAnalyzer: Cluster Error Signatures, Correlate Trace IDs & Detect Spikes
+        LogAnalyzer-->>Supervisor: Update state.log_analysis
+    end
+
+    rect rgb(28, 32, 50)
+        note over Supervisor,HypoGen: Stage 4: Hypothesis Generation
+        Supervisor->>HypoGen: Execute hypothesis_generator_node(state, llm_client)
+        HypoGen->>HypoGen: Generate Ranked Hypotheses via LLM (Ollama/OpenAI) or Analytical Engine
+        HypoGen-->>Supervisor: Update state.hypotheses
+    end
+
+    rect rgb(32, 36, 56)
+        note over Supervisor,HypoEval: Stage 5: Hypothesis Evaluation & Scoring
+        Supervisor->>HypoEval: Execute hypothesis_evaluator_node(state)
+        HypoEval->>HypoEval: Score Evidence Corroboration, Identify Primary Root Cause & Confidence
+        HypoEval-->>Supervisor: Update state.hypotheses with Confidence Scores
+    end
+
+    rect rgb(36, 40, 62)
+        note over Supervisor,Impact: Stage 6: Blast Radius & Impact Analysis
+        Supervisor->>Impact: Execute impact_analyzer_node(state)
+        Impact->>Impact: Traverse Dependency Tiers & Concurrent Incidents
+        Impact-->>Supervisor: Update state.impact (Blast Radius & Affected Services)
+    end
+
+    rect rgb(40, 44, 68)
+        note over Supervisor,RecEngine: Stage 7: Recommendation Formulation
+        Supervisor->>RecEngine: Execute recommendation_engine_node(state)
+        RecEngine->>RecEngine: Draft Prioritized Actions (P1 Mitigation, P2 Diagnostic, P3 Prevention)
+        RecEngine-->>Supervisor: Update state.recommendations
+    end
+
+    rect rgb(44, 48, 74)
+        note over Supervisor,SummaryGen: Stage 8: Executive Summary Compilation
+        Supervisor->>SummaryGen: Execute summary_generator_node(state)
+        SummaryGen->>SummaryGen: Synthesize Executive Report with Root Cause & Runbook Actions
+        SummaryGen-->>Supervisor: Update state.summary
+    end
+
+    Supervisor->>DB: Persist Completed Investigation, Findings & Recommendations
+    Supervisor->>Bus: Publish IncidentInvestigationCompleted Event
+    Bus-->>UI: Real-Time Notification Update
+    UI-->>SRE: Display 8-Stage Investigation Report & Actionable Remediations

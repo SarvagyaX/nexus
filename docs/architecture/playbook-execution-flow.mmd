@@ -1,0 +1,46 @@
+sequenceDiagram
+    autonumber
+    actor SRE as Operator / On-Call
+    participant EventBus as Event Engine / Trigger Evaluator
+    participant Engine as Playbook Execution Engine
+    participant Gate as Human Approval Gate
+    participant Worker as Action Dispatcher
+    participant DB as PostgreSQL
+    participant Audit as Audit Logger
+
+    EventBus->>Engine: Trigger Event (Alert / Incident / Manual Run)
+    Engine->>DB: Query Active Playbooks Matching Trigger Criteria
+    DB-->>Engine: Return Matching Playbook & Step Definitions
+    Engine->>DB: Create PlaybookExecution (status: RUNNING)
+    Engine->>Audit: Record Execution Start Event
+
+    loop For Each Step in Playbook
+        alt Step Type: Automated Action (HTTP / Webhook / Script)
+            Engine->>Worker: Dispatch Step Action (Payload & Config)
+            Worker->>Worker: Execute Action with Timeout & Retry
+            Worker-->>Engine: Action Result (success/failure, output data)
+            Engine->>DB: Update StepExecution (status: COMPLETED, log output)
+        else Step Type: Human Approval Required
+            Engine->>Gate: Create Approval Request (status: PENDING)
+            Engine->>DB: Update Execution (status: WAITING_APPROVAL)
+            Gate->>SRE: Send Approval Notification (In-App / Slack)
+            SRE->>Gate: Review Context & Submit "Approve" Decision
+            Gate-->>Engine: Resume Execution with Approver Identity
+            Engine->>DB: Update StepExecution (status: APPROVED, approved_by)
+            Engine->>Audit: Record Approval Audit Event
+        else Step Type: AI Diagnostic Step
+            Engine->>Worker: Invoke AI Investigation Step
+            Worker-->>Engine: Diagnostic Summary & Recommended Next Steps
+            Engine->>DB: Update StepExecution with AI Insight
+        end
+    end
+
+    alt All Steps Successful
+        Engine->>DB: Update PlaybookExecution (status: COMPLETED, finished_at)
+        Engine->>Audit: Log Execution Success
+        Engine-->>SRE: Notify Playbook Execution Complete
+    else Step Failed & Retries Exhausted
+        Engine->>DB: Update PlaybookExecution (status: FAILED, error_message)
+        Engine->>Audit: Log Execution Failure
+        Engine-->>SRE: Alert Execution Failure with Diagnostics
+    end
