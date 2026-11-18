@@ -11,7 +11,37 @@ Built to eliminate alert fatigue and dramatically compress Mean Time to Resoluti
 
 ---
 
-## 📸 Platform Showcase & Screen Walkthrough
+## 📸 Product Screenshots
+
+> All screenshots below were captured directly from the running local NEXUS development stack (`1440×900`) using seeded demo workspace data.
+
+### Operations Command Center
+![NEXUS Operations Command Center](docs/screenshots/dashboard-overview.png)
+*Real-time workspace overview displaying live service status, active incident counts, error-rate telemetry, and a 24-hour request and anomaly trend chart.*
+
+### Incident Management Console
+![NEXUS Incident Management Console](docs/screenshots/incidents-console.png)
+*Workspace-scoped incident queue with lifecycle status totals, SEV1–SEV4 severity distribution, and cursor-paginated filtering.*
+
+### Agentic AI Investigation Pipeline (8-Node LangGraph)
+![NEXUS Agentic AI Investigation Pipeline](docs/screenshots/ai-investigation.png)
+*Completed 8-node LangGraph investigation displaying execution stages, root-cause confidence scoring, executive synthesis, evidence tabs, and remediation guidance.*
+
+### Structured Log Explorer
+![NEXUS Structured Log Explorer](docs/screenshots/logs-explorer.png)
+*Stacked telemetry histogram, severity distribution bar, service and severity filters, and a structured log stream console.*
+
+### System Health & Reliability Monitoring
+![NEXUS System Health and Reliability](docs/screenshots/system-health.png)
+*Live infrastructure probes for the API runtime, PostgreSQL, Redis pub/sub bus, and AI engine alongside latency percentile distributions and response code breakdowns.*
+
+### Workflow Automation & Playbooks
+![NEXUS Playbook Automation](docs/screenshots/playbooks-automation.png)
+*Multi-step operational playbook editor supporting sequential responder notifications, outbound webhooks, and human-in-the-loop approval gates.*
+
+---
+
+## 🧭 Platform Showcase & Screen Walkthrough
 
 | Screen | Route | Description |
 | :--- | :--- | :--- |
