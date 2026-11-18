@@ -47,14 +47,14 @@ Built to eliminate alert fatigue and dramatically compress Mean Time to Resoluti
 | :--- | :--- | :--- |
 | **Command Center** | `/` | Real-time operational overview with live service health, active incidents, 24h error-rate trends, and quick triage actions. |
 | **Services Registry** | `/services` | Microservice catalog tracking tiers, repository URLs, environment tags, operational ownership, and dependency topology. |
-| **Incidents Console** | `/incidents` | Incident triage lifecycle (`DETECTED -> INVESTIGATING -> IDENTIFIED -> MONITORING -> RESOLVED`) with SEV1–SEV4 prioritization. |
+| **Incidents Console** | `/incidents` | Incident triage lifecycle (`OPEN → INVESTIGATING → MONITORING → RESOLVED`) with SEV1–SEV4 prioritization. |
 | **Incident Detail & Timeline** | `/incidents/:id` | Unified incident command room featuring append-only audit timelines, active responders, and 1-click AI investigation. |
 | **Agentic AI Investigations** | `/investigations` | Autonomous LangGraph state graph reports displaying evidence items, log error clusters, ranked root causes, and remediation playbooks. |
 | **Real-Time Alert Engine** | `/alerts` | Rule-based anomaly evaluation, SHA-256 alert deduplication, fingerprinting, and automatic incident escalation. |
 | **Logs Explorer** | `/logs` | Sub-millisecond structured log query engine with cursor-based pagination, severity filtering, and trace ID correlation. |
 | **Operational Playbooks** | `/playbooks` | Automated runbooks featuring multi-step DAG workflows, webhook actions, and human approval gates (`require_approval`). |
 | **On-Call & Escalations** | `/on-call` | Shift schedule management (daily/weekly round-robin) coupled with multi-tier timeout escalation policies (`/escalation-policies`). |
-| **System Observability** | `/system-health` | Deep platform health probes (`/health/liveness`, `/health/readiness`), Redis latency, DB pool metrics, and Prometheus exports. |
+| **System Observability** | `/system-health` | Deep platform health probes (`/health`, `/ready`, `/api/v1/health/liveness`, `/api/v1/health/readiness`), Redis latency, DB pool metrics, and Prometheus exports. |
 | **Analytics & Reports** | `/reports` | Executive SLA dashboard showing MTTR, MTTD, resolution rate, severity distribution, and 1-click CSV/JSON export. |
 | **Workspace Settings** | `/settings` | Multi-tenant administration console covering RBAC permissions matrix, compliance controls, and integration connectors. |
 
@@ -77,8 +77,8 @@ graph TD
         Nginx -->|Proxy /api/v1| API
 
         subgraph CoreSubsystems ["Subsystems & Middleware"]
-            AuthGuard["JWT & RBAC Guard"]
-            RateLimit["Redis Rate Limiter"]
+            AuthGuard["Session, CSRF & RBAC Guard"]
+            RateLimit["Login Rate Limiter"]
             ServiceReg["Service Registry"]
             LogsPipeline["Logs Ingestion"]
             AlertEngine["Alert Evaluator"]
@@ -105,8 +105,8 @@ graph TD
     end
 
     subgraph DataTier ["Data & State Tier"]
-        Postgres[("PostgreSQL 16\npsycopg 3 Driver | B-Tree/GIN Indexes")]
-        Redis[("Redis 7\nToken Revocation | Deduplication Locks")]
+        Postgres[("PostgreSQL 16\npsycopg 3 Driver | Sessions & Domain State")]
+        Redis[("Redis 7\nReal-Time Pub/Sub Alert Event Bus")]
         CoreSubsystems --> Postgres
         CoreSubsystems --> Redis
     end
@@ -123,7 +123,7 @@ graph TD
 | **Frontend** | React 19.3.1, TypeScript, Vite | Strict type safety, Tailwind CSS v4, Radix UI primitives, Lucide icons, Recharts SVG charting. |
 | **Backend API** | FastAPI 0.115, Python 3.10+, Uvicorn | High-performance async ASGI server, Pydantic v2 validation, OpenAPI 3.1 documentation. |
 | **Database & ORM** | PostgreSQL 16, SQLAlchemy 2.0 | psycopg 3 (`psycopg[binary]`) driver, connection pooling, and strictly versioned Alembic schema migrations. |
-| **Cache & Bus** | Redis 7 | Sliding-window rate limiting, token revocation checking, and atomic alert deduplication locks. |
+| **Event Bus** | Redis 7 | Real-time Pub/Sub alert event streaming across subscribers with automatic in-process fallback when Redis is unavailable. |
 | **AI Investigation** | LangGraph (8-Node Graph) | Multi-node directed acyclic state graph orchestrating planning, evidence gathering, log analysis, hypothesis generation & evaluation, impact analysis, recommendations, and executive summary via Ollama, OpenAI-compatible APIs, or deterministic mock. |
 | **Containers** | Docker, Docker Compose, Nginx | Multi-stage unprivileged Dockerfiles (`nexus:nexus`, `nginx:nginx`), 3-tier internal bridge network. |
 | **CI/CD** | GitHub Actions | Matrix test runs (Python 3.10/3.11), flake8 linting, pytest, `tsc -b`, vite build, `pip-audit`, `npm audit`. |
@@ -140,17 +140,32 @@ graph TD
 
 ### Starting Local Services
 
-```powershell
-# 1. Clone repository and initialize environment
+```bash
+# 1. Clone the repository and enter the project directory
+git clone https://github.com/SarvagyaX/nexus.git
+cd nexus
+
+# 2. Initialize local environment configuration
 cp .env.example .env
 
-# 2. Launch container stack (PostgreSQL, Redis, Backend, Frontend)
+# 3. Launch container stack (PostgreSQL, Redis, Backend, Frontend)
 docker compose up -d --build
 
-# 3. Apply database migrations
+# 4. Apply database migrations
 docker compose exec backend alembic upgrade head
+```
 
-# 4. (Optional) Seed demo workspace and sample data
+#### Optional: Seed the Local Demo Workspace
+Before running the demo seed command, update `.env` with:
+- `APP_ENV=development`
+- `DEMO_AUTH_ENABLED=true`
+- `DEMO_ADMIN_EMAIL=admin@nexus.local` (or any valid email address)
+- `DEMO_ADMIN_PASSWORD=<your-password>` (**minimum 14 characters**)
+
+Then restart the backend container if `.env` was edited after startup and run:
+
+```bash
+docker compose up -d backend
 docker compose exec backend python -m app.seed
 ```
 
@@ -158,8 +173,8 @@ docker compose exec backend python -m app.seed
 - **Web Console**: [http://localhost:5173](http://localhost:5173)
 - **REST API**: [http://localhost:8000](http://localhost:8000)
 - **Interactive OpenAPI Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
-- **Liveness Probe**: [http://localhost:8000/health/liveness](http://localhost:8000/health/liveness)
-- **Deep Readiness Probe**: [http://localhost:8000/ready?full=true](http://localhost:8000/ready?full=true)
+- **Liveness Probe**: [http://localhost:8000/health](http://localhost:8000/health) (alias: [http://localhost:8000/api/v1/health/liveness](http://localhost:8000/api/v1/health/liveness))
+- **Readiness Probe**: [http://localhost:8000/ready](http://localhost:8000/ready) (alias: [http://localhost:8000/api/v1/health/readiness](http://localhost:8000/api/v1/health/readiness); append `?full=true` for detailed dependency status)
 - **Prometheus Metrics**: [http://localhost:8000/metrics](http://localhost:8000/metrics)
 
 ---
@@ -182,11 +197,11 @@ docker compose --env-file .env.production -f docker-compose.prod.yml up -d --bui
 ```
 
 ### Key Security & Hardening Controls
-- **Zero Public Database Exposure**: PostgreSQL and Redis run on `internal: true` networks (`nexus-data-net`) with no host port bindings.
+- **Zero Public Database Exposure**: PostgreSQL and Redis run on an `internal: true` network (`nexus-db-net`) with no host port bindings.
 - **Unprivileged Non-Root Containers**: Backend runs as `nexus` (UID 10001); Nginx runs as `nginx` (UID 101).
-- **Strict Network Segmentation**: 3-tier internal bridge architecture (`nexus-frontend-net`, `nexus-backend-net`, `nexus-data-net`).
-- **Resource Constraints**: CPU limits (1.5 cores) and memory reservations (512MB–1GB) configured on every service.
-- **Automated Health Probes**: Docker daemon monitors liveness and readiness via container health checks.
+- **Strict Network Segmentation**: 3-tier internal bridge architecture (`nexus-frontend-net`, `nexus-backend-net`, `nexus-db-net`).
+- **Resource Constraints**: Per-service CPU and memory limits/reservations configured in `docker-compose.prod.yml` (`frontend` and `redis`: `1.0` CPU / `512M` limit, `0.2` CPU / `128M` reservation; `backend` and `postgres`: `2.0` CPU / `2048M` limit, `0.5` CPU / `512M` reservation).
+- **Automated Health Probes**: Docker daemon monitors liveness and readiness via container health checks (`/api/v1/health/liveness`, `/healthz`, `pg_isready`, `redis-cli ping`).
 
 See [docs/PRODUCTION_DEPLOYMENT.md](docs/PRODUCTION_DEPLOYMENT.md) for full deployment procedures.
 
@@ -215,10 +230,22 @@ See [docs/BACKUP_AND_RESTORE.md](docs/BACKUP_AND_RESTORE.md) for automated sched
 
 NEXUS maintains a comprehensive backend and frontend test suite:
 
+**PowerShell (Windows):**
 ```powershell
 # Run the complete backend test suite (110 tests)
 cd backend
 $env:PYTHONPATH="." ; pytest tests -v
+
+# Run frontend TypeScript type checking and production build
+cd ../frontend
+npm run build
+```
+
+**Bash (Linux / macOS):**
+```bash
+# Run the complete backend test suite (110 tests)
+cd backend
+PYTHONPATH=. pytest tests -v
 
 # Run frontend TypeScript type checking and production build
 cd ../frontend
@@ -233,7 +260,7 @@ npm run build
 2. **LangGraph State Graph vs. Single-Shot LLMs**: Investigating real outages requires gathering logs, traversing microservice graphs, and analyzing trace clusters before drawing conclusions. An 8-node LangGraph state graph guarantees deterministic, verifiable progression.
 3. **Human-in-the-Loop Operational Gates**: Automated remediation can be dangerous. NEXUS enforces explicit human approval (`require_approval`) on disruptive playbook actions (e.g. database failovers, traffic rerouting).
 4. **Deterministic Alert Deduplication**: Alert storms are mitigated using SHA-256 fingerprinting on rule keys and metric labels, grouping duplicate alerts into a single operational lifecycle.
-5. **Dual-Token CSRF Defense**: Web sessions use short-lived JWT access tokens and secure HTTP-only refresh tokens, paired with a Double-Submit Cookie CSRF pattern for all state-changing endpoints.
+5. **Server-Side Session, CSRF & Workspace RBAC Defense**: Authentication uses opaque 256-bit server-side session tokens, SHA-256 hashed in PostgreSQL and delivered through `HttpOnly` cookies, paired with `HMAC-SHA256` session-bound CSRF tokens (`X-CSRF-Token`) and exact `Origin` checks for state-changing requests. Every workspace route enforces role-based access control (RBAC) against active workspace memberships and permission mappings.
 
 ---
 
@@ -259,4 +286,4 @@ npm run build
 
 ## 📄 License
 
-License terms and distribution conditions will be established upon repository publication.
+No `LICENSE` file is provided in this repository. All rights remain reserved by the author unless explicit permission is granted.
