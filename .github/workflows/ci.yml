@@ -19,6 +19,21 @@ jobs:
       matrix:
         python-version: ["3.10", "3.11"]
 
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: nexus_test
+          POSTGRES_PASSWORD: nexus_test_password
+          POSTGRES_DB: nexus_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U nexus_test -d nexus_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -45,11 +60,13 @@ jobs:
 
       - name: Run Backend Pytest Suite
         env:
-          APP_ENV: testing
-          POSTGRES_URL: "sqlite+pysqlite:///:memory:"
-          REDIS_URL: "redis://localhost:6379/0"
           PYTHONPATH: backend
+          TEST_DATABASE_URL: "postgresql://nexus_test:nexus_test_password@localhost:5432/nexus_test"
         run: |
+          cat <<'EOF' > .env
+          APP_ENV=testing
+          POSTGRES_URL=postgresql://nexus_test:nexus_test_password@localhost:5432/nexus_test
+          EOF
           pytest backend/tests -v
 
       - name: Dependency Security Audit (pip-audit)

@@ -1,11 +1,13 @@
 """Alert evaluation engine, lifecycle transitions, grouping, and incident escalation."""
 
+import asyncio
 import base64
 import binascii
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 import hashlib
 import json
+import logging
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -32,6 +34,8 @@ from app.models.log import LogRecord, LogSeverity
 from app.models.service import Service
 from app.services.alert_bus import broadcast_alert_event
 from app.services.incidents import next_reference
+
+logger = logging.getLogger(__name__)
 
 
 def _to_utc(dt: datetime | None) -> datetime | None:
@@ -411,7 +415,6 @@ def evaluate_alert_rules(
     # Broadcast generated/updated alerts to real-time bus
     for a in triggered_alerts:
         try:
-            import asyncio
             loop = asyncio.get_running_loop()
             if loop.is_running():
                 asyncio.create_task(
